@@ -1,0 +1,58 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Build Tauri Desktop (Windows x64)
+        run: npm run build:default
+        env:
+          GOLD_BAND_RELEASE_CHANNEL: default
+
+      - name: Collect Build Artifacts
+        shell: bash
+        run: |
+          mkdir -p dist/artifacts
+          find src-tauri/target -name "gold-band-desktop.exe" -o -name "Gold Band.exe" | while read -r f; do
+            echo "Copying binary: $f"
+            cp "$f" dist/artifacts/
+          done
+          find src-tauri/target -path "*/bundle/nsis/*.exe" | while read -r f; do
+            echo "Copying installer: $f"
+            cp "$f" dist/artifacts/
+          done
+
+      - name: Upload Windows Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-band-windows-x64-binaries
+          path: dist/artifacts/

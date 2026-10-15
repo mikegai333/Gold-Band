@@ -28,3 +28,4 @@ draft/*
 .omc
 .codex-*/
 coverage
+/dist
