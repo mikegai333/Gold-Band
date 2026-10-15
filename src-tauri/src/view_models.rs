@@ -22,9 +22,10 @@ use gold_band::dynamic::{
 };
 use gold_band::dynamic_store::load_dynamic_graph;
 use gold_band::provider::{
-    AcpSelectConfigOption, attachment_meta_for_path, mcp_capabilities_from_capabilities,
-    model_bound_catalogs_from_capabilities, select_config_options_from_capabilities,
-    supported_models_from_capabilities, supported_modes_from_capabilities,
+    AcpSelectConfigOption, attachment_meta_for_path, flatten_select_option_values,
+    mcp_capabilities_from_capabilities, model_bound_catalogs_from_capabilities,
+    select_config_options_from_capabilities, supported_models_from_capabilities,
+    supported_modes_from_capabilities,
 };
 use gold_band::runtime::{NodeState, RoundState, RoundTraceStep, RunState, WorkerRefState};
 
@@ -7201,8 +7202,8 @@ fn config_option_display_name(
         .and_then(|option| option.get("options"))
         .and_then(|options| options.as_array())
         .and_then(|options| {
-            options
-                .iter()
+            flatten_select_option_values(options)
+                .into_iter()
                 .find(|option| option.get("value").and_then(|item| item.as_str()) == Some(value))
         })
         .and_then(|option| option.get("name"))

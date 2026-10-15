@@ -1161,14 +1161,29 @@ fn option_str(option: &Value, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Flattens an ACP select option list, supporting both flat `SessionConfigSelectOption`
+/// (`{ "value": "...", "name": "..." }`) and grouped `SessionConfigSelectGroup`
+/// (`{ "group": "...", "name": "...", "options": [...] }`).
+pub fn flatten_select_option_values<'a>(options: &'a [Value]) -> Vec<&'a Value> {
+    let mut result = Vec::new();
+    for item in options {
+        if let Some(group_options) = item.get("options").and_then(Value::as_array) {
+            result.extend(flatten_select_option_values(group_options));
+        } else if item.get("value").is_some() {
+            result.push(item);
+        }
+    }
+    result
+}
+
 pub fn supported_modes_from_capabilities(capabilities: Option<&Value>) -> Vec<AcpModeOption> {
     if let Some(options) = capabilities
         .and_then(find_mode_config_option)
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
     {
-        return options
-            .iter()
+        return flatten_select_option_values(options)
+            .into_iter()
             .filter_map(|option| {
                 let id = option.get("value").and_then(Value::as_str)?.trim();
                 if id.is_empty() {
@@ -1211,15 +1226,15 @@ pub fn supported_modes_from_capabilities(capabilities: Option<&Value>) -> Vec<Ac
 /// Extracts available AI models from agent capabilities.
 /// Reads from `configOptions[?category="model"].options` (not configOptions[?id="mode"]
 /// which carries permission-mode values, and not `modes.availableModes` which also
-/// carries permission modes).
+/// carries permission modes). Supports both flat and grouped options.
 pub fn supported_models_from_capabilities(capabilities: Option<&Value>) -> Vec<AcpModeOption> {
     if let Some(options) = capabilities
         .and_then(find_model_config_option)
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
     {
-        return options
-            .iter()
+        return flatten_select_option_values(options)
+            .into_iter()
             .filter_map(|option| {
                 let id = option.get("value").and_then(Value::as_str)?.trim();
                 if id.is_empty() {
@@ -1378,6 +1393,7 @@ pub fn select_config_options_from_capabilities(
             let values = option
                 .get("options")
                 .and_then(Value::as_array)
+                .map(|options| flatten_select_option_values(options))
                 .into_iter()
                 .flatten()
                 .filter_map(|value| {
@@ -4847,6 +4863,71 @@ mod tests {
         assert_eq!(options[0].category.as_deref(), Some("thought_level"));
         assert_eq!(options[0].current_value.as_deref(), Some("high"));
         assert_eq!(options[0].options[1].value, "high");
+    }
+
+    #[test]
+    fn extracts_models_and_options_from_grouped_acp_capabilities() {
+        let capabilities = serde_json::json!({
+            "configOptions": [
+                {
+                    "id": "model",
+                    "name": "Model",
+                    "category": "model",
+                    "type": "select",
+                    "currentValue": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                    "options": [
+                        {
+                            "group": "deepseek-official",
+                            "name": "DeepSeek",
+                            "options": [
+                                {
+                                    "value": "[\"deepseek-official\",\"deepseek-flash\"]",
+                                    "name": "DeepSeek-V41-Flash"
+                                },
+                                {
+                                    "value": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                                    "name": "DeepSeek-V4-Flash",
+                                    "description": "Fast and efficient."
+                                },
+                                {
+                                    "value": "[\"deepseek-official\",\"deepseek-v4-pro\"]",
+                                    "name": "DeepSeek-V4-Pro"
+                                }
+                            ]
+                        },
+                        {
+                            "group": "magpie",
+                            "name": "Magpie",
+                            "options": [
+                                {
+                                    "value": "[\"magpie\",\"antigravity/gemini-3.8-flash\"]",
+                                    "name": "Gemini 3.8 Flash"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let models = supported_models_from_capabilities(Some(&capabilities));
+        assert_eq!(models.len(), 4);
+        assert_eq!(models[0].id, "[\"deepseek-official\",\"deepseek-flash\"]");
+        assert_eq!(models[0].name, "DeepSeek-V41-Flash");
+        assert_eq!(models[1].id, "[\"deepseek-official\",\"deepseek-v4-flash\"]");
+        assert_eq!(models[1].description.as_deref(), Some("Fast and efficient."));
+        assert_eq!(models[2].id, "[\"deepseek-official\",\"deepseek-v4-pro\"]");
+        assert_eq!(models[3].id, "[\"magpie\",\"antigravity/gemini-3.8-flash\"]");
+
+        let select_options = select_config_options_from_capabilities(Some(&capabilities));
+        assert_eq!(select_options.len(), 1);
+        assert_eq!(select_options[0].id, "model");
+        assert_eq!(select_options[0].options.len(), 4);
+        assert_eq!(
+            select_options[0].options[0].value,
+            "[\"deepseek-official\",\"deepseek-flash\"]"
+        );
+        assert_eq!(select_options[0].options[0].name, "DeepSeek-V41-Flash");
     }
 
     #[test]

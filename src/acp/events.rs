@@ -12,7 +12,9 @@ use serde_json::Value;
 use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
 
 use crate::acp::control::AcpRuntimeControlCursor;
-use crate::provider::{ConversationPromptInput, UserPromptQuote};
+use crate::provider::{
+    ConversationPromptInput, UserPromptQuote, flatten_select_option_values,
+};
 use crate::runtime_error::{
     RuntimeErrorDomain, RuntimeErrorInfo, manual_runtime_error_info, normalize_runtime_error,
 };
@@ -1220,8 +1222,8 @@ fn config_option_display_name(
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
         .and_then(|options| {
-            options
-                .iter()
+            flatten_select_option_values(options)
+                .into_iter()
                 .find(|option| option.get("value").and_then(Value::as_str) == Some(value))
         })
         .and_then(|option| option.get("name"))
@@ -1250,8 +1252,9 @@ fn model_display_name(models: Option<&Value>, model_id: &str) -> Option<String> 
 fn default_model_display_name(config_options: Option<&Value>) -> Option<String> {
     let description = find_config_option(config_options, "model")?
         .get("options")
-        .and_then(Value::as_array)?
-        .iter()
+        .and_then(Value::as_array)
+        .map(|options| flatten_select_option_values(options))?
+        .into_iter()
         .find(|option| option.get("value").and_then(Value::as_str) == Some("default"))?
         .get("description")
         .and_then(Value::as_str)?;

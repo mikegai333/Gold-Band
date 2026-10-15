@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
+use crate::provider::flatten_select_option_values;
+
 pub const ACP_SESSION_CONFIG_ROLLED_BACK_CODE: &str = "acp.session-config-rolled-back";
 pub const ACP_THOUGHT_LEVEL_CATEGORY: &str = "thought_level";
 pub const ACP_MODEL_CONFIG_CATEGORY: &str = "model_config";
@@ -372,6 +374,7 @@ fn catalog_model_ids(options: &[Value]) -> Vec<String> {
         })
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
+        .map(|options| flatten_select_option_values(options))
         .into_iter()
         .flatten()
         .filter_map(|option| option.get("value").and_then(Value::as_str))
@@ -700,6 +703,7 @@ pub fn option_listed_values(option: &Value) -> Vec<String> {
     option
         .get("options")
         .and_then(Value::as_array)
+        .map(|options| flatten_select_option_values(options))
         .into_iter()
         .flatten()
         .filter_map(|item| item.get("value").and_then(Value::as_str))
@@ -992,6 +996,7 @@ fn option_category(option: Option<&Value>) -> Option<&str> {
 fn option_has_value(option: Option<&Value>, value: &str) -> bool {
     option
         .and_then(|option| option.get("options").and_then(Value::as_array))
+        .map(|options| flatten_select_option_values(options))
         .into_iter()
         .flatten()
         .filter_map(|item| item.get("value").and_then(Value::as_str))

@@ -404,8 +404,8 @@ use crate::config::{
 use crate::domain::{SessionMode, TurnControlMode, TurnControlTransitionCause, VERSION};
 use crate::provider::{
     ACP_MCP_TRANSPORT_UNSUPPORTED_CODE, AcpContentBlock, AcpLiveTimelinePosition, PromptBundle,
-    PromptVisibility, SkippedAcpMcpServer, gold_band_hidden_block, prepare_acp_mcp_servers,
-    prompt_text_with_files,
+    PromptVisibility, SkippedAcpMcpServer, flatten_select_option_values, gold_band_hidden_block,
+    prepare_acp_mcp_servers, prompt_text_with_files,
 };
 use crate::runtime::{WorkerRefState, validate_worker_ref_state};
 use crate::runtime_error::{
@@ -5062,6 +5062,7 @@ impl<'a> AcpRuntime<'a> {
         let available_values = option
             .get("options")
             .and_then(Value::as_array)
+            .map(|options| flatten_select_option_values(options))
             .into_iter()
             .flatten()
             .filter_map(|item| item.get("value").and_then(Value::as_str))
@@ -5155,6 +5156,7 @@ impl<'a> AcpRuntime<'a> {
         if !selector
             .get("options")
             .and_then(Value::as_array)
+            .map(|options| flatten_select_option_values(options))
             .is_some_and(|items| {
                 items
                     .iter()
@@ -9305,6 +9307,7 @@ fn available_model_ids(config_options: Option<&Value>) -> Vec<String> {
         .and_then(find_model_config_option)
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
+        .map(|options| flatten_select_option_values(options))
         .into_iter()
         .flatten()
         .filter_map(|option| option.get("value").and_then(Value::as_str))
@@ -9331,9 +9334,11 @@ fn select_option_name(
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
         .and_then(|options| {
-            options.iter().find(|option| {
-                option.get("value").and_then(Value::as_str).map(str::trim) == Some(value)
-            })
+            flatten_select_option_values(options)
+                .into_iter()
+                .find(|option| {
+                    option.get("value").and_then(Value::as_str).map(str::trim) == Some(value)
+                })
         })
         .and_then(|option| option.get("name"))
         .and_then(Value::as_str)
@@ -9372,8 +9377,8 @@ fn available_mode_ids(config_options: Option<&Value>, modes: Option<&Value>) -> 
         .and_then(|option| option.get("options"))
         .and_then(Value::as_array)
     {
-        return options
-            .iter()
+        return flatten_select_option_values(options)
+            .into_iter()
             .filter_map(|option| option.get("value").and_then(Value::as_str))
             .map(str::trim)
             .filter(|value| !value.is_empty())
