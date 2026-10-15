@@ -71,6 +71,9 @@ export function tauriConfigOverlay(config, version, buildOptions = {}) {
   if (buildOptions.createUpdaterArtifacts !== undefined) {
     bundle.createUpdaterArtifacts = buildOptions.createUpdaterArtifacts;
   }
+  if (buildOptions.stripUpdaterPubkey) {
+    delete overlay.plugins.updater.pubkey;
+  }
   overlay.bundle = bundle;
 
   return overlay;

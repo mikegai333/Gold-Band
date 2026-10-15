@@ -84,11 +84,20 @@ if (catalogResult.status !== 0) {
 
 const overlayPath = join(repoRoot, 'src-tauri', 'target', 'channel', `tauri.${channel}.conf.json`);
 const buildPlan = channelBuildPlan(overlayPath, buildOptions);
+const tauriConfigBuildOptions = {
+  ...buildPlan.tauriConfigBuildOptions,
+};
+if (!privateKey) {
+  if (tauriConfigBuildOptions.createUpdaterArtifacts === undefined) {
+    tauriConfigBuildOptions.createUpdaterArtifacts = false;
+  }
+  tauriConfigBuildOptions.stripUpdaterPubkey = true;
+}
 writeTauriConfigOverlay(
   config,
   overlayPath,
   isDefaultChannel ? undefined : channelVersion,
-  buildPlan.tauriConfigBuildOptions,
+  tauriConfigBuildOptions,
 );
 
 const cargoTargetDirectory = readCargoTargetDirectory(repoRoot, env);

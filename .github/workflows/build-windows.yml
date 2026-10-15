@@ -42,12 +42,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist/artifacts
-          find src-tauri/target -name "gold-band-desktop.exe" -o -name "Gold Band.exe" | while read -r f; do
-            echo "Copying binary: $f"
+          find target src-tauri/target -maxdepth 3 -name "gold-band-desktop.exe" -o -name "Gold Band.exe" 2>/dev/null | head -n 1 | while read -r f; do
+            echo "Copying binary: $f -> dist/artifacts/Gold Band.exe"
+            cp "$f" "dist/artifacts/Gold Band.exe"
+          done
+          find target src-tauri/target -path "*/bundle/nsis/*.exe" 2>/dev/null | while read -r f; do
+            echo "Copying NSIS installer: $f"
             cp "$f" dist/artifacts/
           done
-          find src-tauri/target -path "*/bundle/nsis/*.exe" | while read -r f; do
-            echo "Copying installer: $f"
+          find target src-tauri/target -path "*/bundle/msi/*.msi" 2>/dev/null | while read -r f; do
+            echo "Copying MSI installer: $f"
             cp "$f" dist/artifacts/
           done
 
