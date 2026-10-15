@@ -26,6 +26,7 @@
     "build:channel": "node scripts/build-channel.mjs",
     "build:default": "node scripts/build-channel.mjs default",
     "build:wb": "node scripts/build-channel.mjs wb",
+    "package:portable": "node scripts/package-portable.mjs",
     "version:sync": "node scripts/sync-version.mjs",
     "release:tag": "node scripts/release-tag.mjs",
     "test:release-config": "node --test scripts/release-please-config.test.mjs",
